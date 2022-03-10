@@ -1,0 +1,7 @@
+name = "PythonIO"
+uuid = "8bf83ebe-2bd1-4d2d-851a-d395b3caa6a1"
+authors = ["Christopher Doris <github.com/cjdoris>"]
+version = "0.1.0"
+
+[deps]
+ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
