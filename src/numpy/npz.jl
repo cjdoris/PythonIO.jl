@@ -1,9 +1,6 @@
-module Npz
-
 import ZipFile
-import ..Npy: readnpy, readnpyheader, writenpy
 
-export readnpy, writenpy, readnpz, writenpz
+export NpzReader, NpzWriter, readnpz, writenpz
 
 """
     NpzReader(io::IO; own=false)
@@ -216,6 +213,4 @@ function writenpz(f::Function, fn::AbstractString)
     finally
         close(w)
     end
-end
-
 end

@@ -1,6 +1,4 @@
-module Npy
-
-export readnpy, writenpy
+export NpyHeader, NpyDescr, readnpy, readnpyheader, readnpydata, writenpy
 
 const NPY_MAGIC = b"\x93NUMPY"
 
@@ -359,6 +357,4 @@ function writenpy(io::IO, x::AbstractArray{T,N}) where {T,N}
 end
 function writenpy(fn::AbstractString, x::AbstractArray)
     open(io->writenpy(io, x), fn, "w")
-end
-
 end
