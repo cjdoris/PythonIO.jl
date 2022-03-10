@@ -61,3 +61,13 @@ const GLOBALS = Dict{Tuple{String,String},Any}(
     ("datetime", "time") => PyTimeType(),
     ("datetime", "datetime") => PyDateTimeType(),
 )
+
+"""
+    pyglobal(mod, attr)
+
+Look up a global object by module name and attribute name.
+
+This returns `PyGlobal(mod, attr)` unless there is a global registered in `GLOBALS`.
+"""
+pyglobal(mod, attr) = get(()->PyGlobal(mod, attr), GLOBALS, (mod, attr))
+export pyglobal

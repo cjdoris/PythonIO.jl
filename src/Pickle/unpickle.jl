@@ -1,18 +1,12 @@
 int_or_bigint(x) = (y=mod(x,Int); x==y ? convert(Int,x) : convert(BigInt,y))
 
-struct UnpickleOpts
-    globals :: Dict{Tuple{String,String},Any}
-end
-UnpickleOpts(; globals=PyObjects.GLOBALS) = UnpickleOpts(globals)
-
 mutable struct UnpickleState
-    opts :: UnpickleOpts
     stack :: Stack
     proto :: Int
     pos :: Int
     memo :: Memo
 end
-UnpickleState(opts) = UnpickleState(opts, Stack(), HIGHEST_PROTOCOL, 1, Memo())
+UnpickleState() = UnpickleState(Stack(), HIGHEST_PROTOCOL, 1, Memo())
 
 function read_opcode(io::IO, state::UnpickleState)
     ans = read(io, OpCode)
@@ -52,10 +46,8 @@ function read_line(io::IO, state::UnpickleState)
     ans
 end
 
-unpickle(io::IO; kw...) = unpickle(io, UnpickleOpts(; kw...))
-
-function unpickle(io::IO, opts::UnpickleOpts)
-    state = UnpickleState(opts)
+function unpickle(io::IO)
+    state = UnpickleState()
     # optional first PROTO opcode
     op = read_opcode(io, state)
     if op == OP_PROTO
@@ -340,7 +332,7 @@ function doop(op::OpCode, state::UnpickleState, io::IO)
     elseif op == OP_STACK_GLOBAL
         attr = pop!(state.stack)::String
         mod = pop!(state.stack)::String
-        val = get(()->PyGlobal(mod, attr), state.opts.globals, (mod, attr))
+        val = pyglobal(mod, attr)
         push!(state.stack, val)
 
     elseif op == OP_MEMOIZE

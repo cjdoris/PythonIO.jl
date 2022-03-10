@@ -21,3 +21,10 @@ These most commonly used functions are exported from `PythonIO`:
 - `writenpy(file, array)`
 - `readnpz(file, [key_or_keys])`
 - `writenpz(file, dict_of_arrays)`
+
+Further functionality is exported from sub-modules, described below.
+
+### PyObjects
+
+This module contains Julia representations of Python objects. For example `PyDict`
+represents a Python `dict` as a vector of key-value pairs.
