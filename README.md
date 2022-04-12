@@ -1,6 +1,6 @@
 # PythonIO.jl
 
-Read a write common Python data formats.
+Read and write common Python data formats.
 
 Supports:
 - Python literals (to do)
