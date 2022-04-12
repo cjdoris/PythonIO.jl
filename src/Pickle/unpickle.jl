@@ -124,7 +124,7 @@ function doop(op::OpCode, state::UnpickleState, io::IO)
     elseif op == OP_REDUCE
         args = pop!(state.stack)::PyTuple
         func = pop!(state.stack)
-        val = pyfunccall(func, args.values)
+        val = PyFuncCall(func, args.values)
         push!(state.stack, val)
 
     elseif op == OP_STRING
@@ -240,7 +240,7 @@ function doop(op::OpCode, state::UnpickleState, io::IO)
     elseif op == OP_NEWOBJ
         args = pop!(state.stack)::PyTuple
         cls = pop!(state.stack)
-        val = pynewobj(cls, args.values)
+        val = PyNewObj(cls, args.values)
         push!(state.stack, val)
 
     elseif op == OP_EXT1
@@ -326,13 +326,13 @@ function doop(op::OpCode, state::UnpickleState, io::IO)
         kwargs = pop!(state.stack)::PyDict
         args = pop!(state.stack)::PyTuple
         cls = pop!(state.stack)
-        val = pynewobj(cls, args.values, kwargs.items)
+        val = PyNewObj(cls, args.values, kwargs.items)
         push!(state.stack, val)
 
     elseif op == OP_STACK_GLOBAL
         attr = pop!(state.stack)::String
         mod = pop!(state.stack)::String
-        val = pyglobal(mod, attr)
+        val = PyGlobal(mod, attr)
         push!(state.stack, val)
 
     elseif op == OP_MEMOIZE

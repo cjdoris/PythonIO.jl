@@ -9,10 +9,9 @@ abstract type PyObject end
 export PyObject
 
 include("collections.jl")
+include("abstract.jl")
+include("simplify.jl")
 include("globals.jl")
 include("funccall.jl")
-include("newobj.jl")
-include("setstate.jl")
-include("simplify.jl")
 
 end

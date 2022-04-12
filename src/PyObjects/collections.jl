@@ -1,4 +1,15 @@
 """
+    PyComplex(real, imag)
+
+Represents `complex(real, imag)`.
+"""
+struct PyComplex <: PyObject
+    real :: Any
+    imag :: Any
+end
+export PyComplex
+
+"""
     PyRange(start, stop, step)
 
 Represents `range(start, stop, step)`.
@@ -41,8 +52,8 @@ Represents a `tuple`.
 """
 struct PyTuple <: PyObject
     values :: Vector{Any}
-    PyList(xs) = new(Any[x for x in xs])
-    PyList() = new(Any[])
+    PyTuple(xs) = new(Any[x for x in xs])
+    PyTuple() = new(Any[])
 end
 export PyTuple
 

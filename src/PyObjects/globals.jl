@@ -1,14 +1,3 @@
-"""
-    PyGlobal(mod, attr)
-
-Represents a global object, referenced by module and attribute
-"""
-struct PyGlobal <: PyObject
-    mod :: String
-    attr :: String
-end
-export PyGlobal
-
 struct PyNoneType <: PyObject end
 struct PyIntType <: PyObject end
 struct PyFloatType <: PyObject end
@@ -31,11 +20,14 @@ struct PyArrayReconstructor <: PyObject end
 struct PyDateType <: PyObject end
 struct PyTimeType <: PyObject end
 struct PyDateTimeType <: PyObject end
+struct PyNumPyDTypeType <: PyObject end
+struct PyNumPyNDArrayType <: PyObject end
 
 export PyNoneType, PyIntType, PyFloatType, PyBoolType, PyComplexType, PyListType,
     PyTupleType, PyDictType, PySetType, PyFrozenSetType, PyStrType, PyBytesType,
     PyByteArrayType, PyRangeType, PySliceType, PyFractionType, PyArrayType,
-    PyArrayReconstructor, PyDateType, PyTimeType, PyDateTimeType
+    PyArrayReconstructor, PyDateType, PyTimeType, PyDateTimeType, PyNumPyDTypeType,
+    PyNumPyNDArrayType
 
 const GLOBALS = Dict{Tuple{String,String},Any}(
     ("builtins", "NoneType") => PyNoneType(),
@@ -60,14 +52,6 @@ const GLOBALS = Dict{Tuple{String,String},Any}(
     ("datetime", "date") => PyDateType(),
     ("datetime", "time") => PyTimeType(),
     ("datetime", "datetime") => PyDateTimeType(),
+    ("numpy", "dtype") => PyNumPyDTypeType(),
+    ("numpy", "ndarray") => PyNumPyNDArrayType(),
 )
-
-"""
-    pyglobal(mod, attr)
-
-Look up a global object by module name and attribute name.
-
-This returns `PyGlobal(mod, attr)` unless there is a global registered in `GLOBALS`.
-"""
-pyglobal(mod, attr) = get(()->PyGlobal(mod, attr), GLOBALS, (mod, attr))
-export pyglobal

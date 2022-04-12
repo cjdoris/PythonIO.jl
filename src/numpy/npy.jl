@@ -1,5 +1,7 @@
 export NpyHeader, NpyDescr, readnpy, readnpyheader, readnpydata, writenpy
 
+using ..PyObjects, ..Python
+
 const NPY_MAGIC = b"\x93NUMPY"
 
 const BIGENDIAN = ENDIAN_BOM == 0x01020304
@@ -58,40 +60,25 @@ function readnpyheader(io::IO)
         sizeof(raw) == header_size || error("reached end of file while reading header")
         version_major < 2 && !isascii(raw) && error("header contains non-ASCII characters")
 
-        # parse header
+        hdr = readpy(IOBuffer(raw))::PyDict
         descr = nothing
         fortran_order = nothing
         shape = nothing
-        i = firstindex(raw)
-        i = parse_space(raw, i)
-        i, _ = parse_char(raw, i, '{')
-        while true
-            i = parse_space(raw, i)
-            i, c = parse_char(raw, i, '}', nothing)
-            c == '}' && break
-            i, k = parse_string(raw, i)
-            k in ("descr", "fortran_order", "shape") || error("bad header key, got $(repr(k))")
-            i = parse_space(raw, i)
-            i, _ = parse_char(raw, i, ':')
-            i = parse_space(raw, i)
+        for (k, v) in hdr.items
+            k::String
             if k == "descr"
-                i, descr = parse_descr(raw, i)
+                descr = parse_descr(v::String)
             elseif k == "fortran_order"
-                i, fortran_order = parse_fortran_order(raw, i)
+                fortran_order = v::Bool
             elseif k == "shape"
-                i, shape = parse_shape(raw, i)
+                shape = collect(Int, (v::PyTuple).values)
             else
-                @assert false
+                error("bad header key, got $(repr(k))")
             end
-            i = parse_space(raw, i)
-            i, c = parse_char(raw, i, ('}', ','))
-            c == '}' && break
         end
-        descr === nothing && error("missing key $(repr("descr"))")
-        fortran_order === nothing && error("missing key $(repr("fortran_order"))")
-        shape === nothing && error("missing key $(repr("shape"))")
-        i = parse_space(raw, i)
-        checkbounds(Bool, raw, i) && error("expecting end of header, got $(repr(raw[i]))")
+        descr === nothing && error("missing header key $(repr("descr"))")
+        fortran_order === nothing && error("missing header key $(repr("fortran_order"))")
+        shape === nothing && error("missing header key $(repr("shape"))")
 
         # done
         NpyHeader(strip(raw), version_major, version_minor, descr, fortran_order, shape)
@@ -101,62 +88,7 @@ function readnpyheader(io::IO)
     end
 end
 
-function parse_space(s, i)
-    while checkbounds(Bool, s, i) && isspace(s[i])
-        i = nextind(s, i)
-    end
-    return i
-end
-
-struct Unspecified end
-
-function parse_char(s, i, f::Function, d=Unspecified())
-    if checkbounds(Bool, s, i)
-        c = s[i]
-        if f(c)
-            return nextind(s, i), c
-        elseif d === Unspecified()
-            error("parsing error, got $(repr(c))")
-        elseif d isa Function
-            return i, d(repr(c))
-        else
-            return i, d
-        end
-    elseif d === Unspecified()
-        error("parsing error, got $(repr(c))")
-    elseif d isa Function
-        return i, d("end of file")
-    else
-        return i, d
-    end
-end
-
-parse_char(s, i, c::Char, d=x->error("expecting $(repr(c)), got $x")) = parse_char(s, i, x->x==c, d)
-
-parse_char(s, i, cs::Tuple{Vararg{Char}}, d=x->error("expecting $(join(map(repr, cs), ", ", " or ")), got $x")) = parse_char(s, i, x->x in cs, d)
-
-function parse_string(s, i)
-    i, q = parse_char(s, i, ('"', '\''))
-    cs = Char[]
-    while true
-        if checkbounds(Bool, s, i)
-            c = s[i]
-            if c == q
-                return nextind(s, i), String(cs)
-            elseif c == '\\'
-                error("escapes not implemented")
-            else
-                push!(cs, c)
-                i = nextind(s, i)
-            end
-        else
-            error("expecting char, got end of file")
-        end
-    end
-end
-
-function parse_descr(s, i)
-    i, str = parse_string(s, i)
+function parse_descr(str)
     e = str[1]
     e in "<>|" || error("bad descr, got $(repr(str))")
     t = str[2:end]
@@ -196,51 +128,7 @@ function parse_descr(s, i)
     if e == '|' && sizeof(T) > 1
         error("invalid descr, got $(repr(str))")
     end
-    return i, NpyDescr(T, e == '>')
-end
-
-function parse_fortran_order(s, i)
-    i, c = parse_char(s, i, ('T', 'F'))
-    if c == 'T'
-        i, _ = parse_char(s, i, 'r')
-        i, _ = parse_char(s, i, 'u')
-        i, _ = parse_char(s, i, 'e')
-        return i, true
-    elseif c == 'F'
-        i, _ = parse_char(s, i, 'a')
-        i, _ = parse_char(s, i, 'l')
-        i, _ = parse_char(s, i, 's')
-        i, _ = parse_char(s, i, 'e')
-        return i, false
-    end
-    @assert false
-end
-
-function parse_shape(s, i)
-    i, _ = parse_char(s, i, '(')
-    ans = Int[]
-    while true
-        i = parse_space(s, i)
-        i, c = parse_char(s, i, ')', nothing)
-        c == ')' && break
-        i, n = parse_int(s, i)
-        push!(ans, n)
-        i = parse_space(s, i)
-        i, c = parse_char(s, i, (')', ','))
-        c == ')' && break
-    end
-    return (i, ans)
-end
-
-function parse_int(s, i)
-    i, c = parse_char(s, i, x->'0'≤x≤'9', x->error("expecting digit, got $x"))
-    n = Int(c - '0')
-    while true
-        i, c = parse_char(s, i, x->'0'≤x≤'9', nothing)
-        c === nothing && break
-        n = 10*n + Int(c - '0')
-    end
-    return i, n
+    return NpyDescr(T, e == '>')
 end
 
 """
