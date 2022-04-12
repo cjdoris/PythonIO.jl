@@ -1,9 +1,9 @@
 """
-    module Pickle
+    module PickleIO
 
 Functions to read and write Python pickle files.
 """
-module Pickle
+module PickleIO
 
 export readpkl
 

@@ -1,6 +1,11 @@
-module Python
+"""
+    module PyExprIO
 
-export readpy
+Functions to read and write Python expressions.
+"""
+module PyExprIO
+
+export readpyexpr
 
 using ..PyObjects
 
@@ -13,11 +18,11 @@ end
 State(buf::String) = State(buf, firstindex(buf), lastindex(buf))
 
 """
-    readpy(io_or_filename; simplify=false)
+    readpyexpr(io_or_filename; simplify=false)
 
 Reads a single expression from a .py file.
 """
-function readpy(io::IO; simplify=nothing)
+function readpyexpr(io::IO; simplify=nothing)
     ans = parse_any(State(read(io, String)))
     if simplify !== nothing
         ans = PyObjects.simplify(ans)

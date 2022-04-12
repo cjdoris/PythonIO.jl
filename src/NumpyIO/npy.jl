@@ -1,6 +1,6 @@
 export NpyHeader, NpyDescr, readnpy, readnpyheader, readnpydata, writenpy
 
-using ..PyObjects, ..Python
+using ..PyObjects, ..PyExprIO
 
 const NPY_MAGIC = b"\x93NUMPY"
 
@@ -60,7 +60,7 @@ function readnpyheader(io::IO)
         sizeof(raw) == header_size || error("reached end of file while reading header")
         version_major < 2 && !isascii(raw) && error("header contains non-ASCII characters")
 
-        hdr = readpy(IOBuffer(raw))::PyDict
+        hdr = readpyexpr(IOBuffer(raw))::PyDict
         descr = nothing
         fortran_order = nothing
         shape = nothing

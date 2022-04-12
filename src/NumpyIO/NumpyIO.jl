@@ -1,9 +1,9 @@
 """
-    module Numpy
+    module NumpyIO
 
 Functions to read and write Numpy .npy and .npz files.
 """
-module Numpy
+module NumpyIO
 
 include("npy.jl")
 include("npz.jl")

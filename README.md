@@ -1,9 +1,7 @@
 # PythonIO.jl
 
-Read a write common Python data formats.
-
-Supports:
-- Python literals (to do)
+Read a write common Python data formats:
+- Python literal expressions
 - Pickle
 - Numpy .npy and .npz files
 
@@ -16,11 +14,14 @@ pkg> add https://github.com/cjdoris/PythonIO.jl
 ## API
 
 These most commonly used functions are exported from `PythonIO`:
-- `readpkl(file)`
+- `readpyexpr(file; simplify=false)`
+- `readpkl(file; simplify=false)`
 - `readnpy(file)`
 - `writenpy(file, array)`
 - `readnpz(file, [key_or_keys])`
 - `writenpz(file, dict_of_arrays)`
+
+The `file` argument is an IO stream or filename.
 
 Further functionality is exported from sub-modules, described below.
 
