@@ -46,6 +46,25 @@ function read_line(io::IO, state::UnpickleState)
     ans
 end
 
+function read_stringnl_noescape(io::IO, state::UnpickleState)
+    read_line(io, state)
+end
+
+function read_decimalnl_short(io::IO, state::UnpickleState)
+    line = read_line(io, state)
+    if line == "00"
+        return false
+    elseif line == "01"
+        return true
+    end
+    return int_or_bigint(parse(BigInt, line))
+end
+
+function read_floatnl(io::IO, state::UnpickleState)
+    line = read_line(io, state)
+    return parse(Float64, line)
+end
+
 function unpickle(io::IO)
     state = UnpickleState()
     # optional first PROTO opcode
@@ -87,13 +106,11 @@ function doop(op::OpCode, state::UnpickleState, io::IO)
         push!(state.stack, top(state.stack))
 
     elseif op == OP_FLOAT
-        str = read_line(io, state)
-        val = parse(Float64, str)
+        val = read_floatnl(io, state)
         push!(state.stack, val)
 
     elseif op == OP_INT
-        str = read_line(io, state)
-        val = int_or_bigint(parse(BigInt, str))
+        val = read_decimalnl_short(io, state)
         push!(state.stack, val)
 
     elseif op == OP_BININT
@@ -155,7 +172,10 @@ function doop(op::OpCode, state::UnpickleState, io::IO)
         pysetstate!(obj, arg)
 
     elseif op == OP_GLOBAL
-        error("opcode not implemented: $op")
+        mod = read_stringnl_noescape(io, state)
+        attr = read_stringnl_noescape(io, state)
+        val = PyGlobal(mod, attr)
+        push!(state.stack, val)
 
     elseif op == OP_DICT
         kvs = poptomark!(state.stack)
@@ -200,13 +220,16 @@ function doop(op::OpCode, state::UnpickleState, io::IO)
         error("opcode not implemented: $op")
 
     elseif op == OP_PUT
-        error("opcode not implemented: $op")
+        idx = read_decimalnl_short(io, state)
+        state.memo[idx] = top(state.stack)
 
     elseif op == OP_BINPUT
-        error("opcode not implemented: $op")
+        idx = read_u1(io, state)
+        state.memo[idx] = top(state.stack)
 
     elseif op == OP_LONG_BINPUT
-        error("opcode not implemented: $op")
+        idx = read_u4(io, state)
+        state.memo[idx] = top(state.stack)
 
     elseif op == OP_SETITEM
         v = pop!(state.stack)

@@ -10,15 +10,12 @@ _map(s, x::PyFrozenSet) = PyFrozenSet(s(v) for v in x.values)
 _map(s, x::PyFuncCall) = PyFuncCall(s(x.func), [s(x) for x in x.args], s(x.state))
 _map(s, x::PyNewObj) = PyNewObj(s(x.cls), [s(x) for x in x.args], [s(k) => s(v) for (k, v) in x.kwargs], s(x.state))
 
-_walk(f, x, c=IdDict{Any,Any}()) = get!(c, x) do
+walk(f, x; cache::IdDict=IdDict()) = get!(cache, x) do
     z = _map(x) do y
-        _walk(f, y, c)
+        walk(f, y; cache)
     end
     f(z)
 end
-
-walk(f, x) = _walk(f, x)
-walk(f::Bool, x) = f ? walk(native_walker, x) : x
 
 simplify_walker(x) = x
 simplify_walker(x::PyGlobal) = get(GLOBALS, (x.mod, x.attr), x)
@@ -30,7 +27,7 @@ simplify_walker(x::PyFuncCall) =
         x
     end
 
-simplify(x) = walk(simplify_walker, x)
+simplify(x; cache=IdDict()) = walk(simplify_walker, x; cache)
 
 native_walker(x) = x
 native_walker(x::PyComplex) = Complex(x.real, x.imag)
@@ -43,3 +40,8 @@ native_walker(x::PyFrozenSet) = Set(x for x in x.values)
 native_walker(x::PyBytes) = codeunits(String(x.values))
 native_walker(x::PyByteArray) = copy(x.values)
 native_walker(x::PyArray) = copy(x.values)
+
+walk(f::Bool, x; cache::IdDict=IdDict()) = f ? walk(native_walker, x; cache) : x
+
+map_walk(f, x; cache=IdDict()) = map(x->walk(f, x; cache), x)
+map_simplify(x; cache=IdDict()) = map(x->simplify(x; cache), x)

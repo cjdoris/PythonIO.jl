@@ -1,6 +1,6 @@
 export NpyHeader, NpyDescr, readnpy, readnpyheader, readnpydata, writenpy
 
-using ..PyObjects, ..PyExprIO
+using ..PyObjects, ..PyExprIO, ..PickleIO
 
 const NPY_MAGIC = b"\x93NUMPY"
 
@@ -122,36 +122,67 @@ function parse_descr(str)
         T = ComplexF32
     elseif t == "c16"
         T = ComplexF64
+    elseif t == "O"
+        T = Any
     else
         error("unsupported descr: $(repr(str))")
     end
-    if e == '|' && sizeof(T) > 1
+    if e == '|' && T != Any && sizeof(T) > 1
         error("invalid descr, got $(repr(str))")
     end
     return NpyDescr(T, e == '>')
 end
 
 """
-    readnpydata(io::IO, h::NpyHeader; transpose::Bool=false)
+    readnpydata(io::IO, h::NpyHeader; transpose=false, simplify=false)
 
 Read the data portion of a .npy file.
 
 If `transpose=true` then the array is transposed.
+
+If the data is pickled, the `simplify` argument has the same meaning as for
+[`PythonIO.readpkl`](@ref). Otherwise it has no effect.
 """
-function readnpydata(io::IO, h::NpyHeader; transpose::Bool=false)
+function readnpydata(io::IO, h::NpyHeader; transpose::Bool=false, simplify=false)
     fo = h.fortran_order
     dt = h.descr
     sz = h.shape
-    if transpose
-        fo = !fo
-        sz = reverse(sz)
-    end
-    x = _readarray(io, dt.eltype, Tuple(fo ? sz : reverse(sz)))::Array
-    if BIGENDIAN != dt.bigendian && sizeof(st.eltype) > 1
-        x = map(bswap, x)::Array
-    end
-    if !fo
-        x = _reversedims(x)::Array
+    if dt.eltype == Any
+        x = readpkl(io, simplify=false)
+        @assert fo == false
+        @assert x isa PyFuncCall
+        @assert x.func isa PyGlobal
+        @assert x.func.mod == "numpy.core.multiarray"
+        @assert x.func.attr == "_reconstruct"
+        @assert x.state isa PyTuple
+        @assert length(x.state.values) ≥ 5
+        @assert x.state.values[2] isa PyTuple
+        @assert x.state.values[2].values == sz
+        @assert x.state.values[5] isa PyList
+        x = x.state.values[5].values::Vector{Any}
+        @assert length(x) == prod(sz)
+        if simplify === nothing
+            x = map(identity, x)::Vector
+        else
+            x = PyObjects.map_simplify(x)::Vector
+            x = PyObjects.map_walk(simplify, x)::Vector
+        end
+        x = reshape(x, Tuple(reverse(sz)))::Array
+        if !transpose
+            x = _reversedims(x)::Array
+        end
+    else
+        if transpose
+            fo = !fo
+            sz = reverse(sz)
+        end
+        x = _readarray(io, dt.eltype, Tuple(fo ? sz : reverse(sz)))::Array
+        if BIGENDIAN != dt.bigendian && sizeof(st.eltype) > 1
+            x = map(bswap, x)::Array
+        end
+        if !fo
+            x = _reversedims(x)::Array
+        end
     end
     return x
 end
@@ -166,14 +197,17 @@ function _readarray(io::IO, ::Type{T}, size::NTuple{N,Int}) where {N,T}
 end
 
 """
-    readnpy(io_or_filename; transpose::Bool=false)
+    readnpy(io_or_filename; transpose=false, simplify=false)
 
 Read a .npy array from an IO stream or filename.
 
 If `transpose=true` then the array is transposed.
+
+If the data is pickled, the `simplify` argument has the same meaning as for
+[`PythonIO.readpkl`](@ref). Otherwise it has no effect.
 """
-function readnpy(io::IO; transpose::Bool=false)
-    readnpydata(io, readnpyheader(io), transpose=transpose)
+function readnpy(io::IO; transpose::Bool=false, simplify=false)
+    readnpydata(io, readnpyheader(io); transpose, simplify)
 end
 function readnpy(fn::AbstractString; kw...)
     open(io->readnpy(io; kw...), fn)
